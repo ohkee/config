@@ -6,6 +6,7 @@ export PATH="$PATH:/c/Users/$USER/.local/bin"
 
 export PS1='\u@\h:\[\e[33m\]\w\[\e[0m\]\$ '
 
+
 export HISTCONTROL=ignoreboth     
 shopt -s histappend               
 
@@ -24,18 +25,25 @@ alias grep='grep --color=auto'
 
 CM_BUILD_DIR=build
 
+_cm_win() {
+    [[ $PWD == /mnt/* ]]
+}
+
 cmc() {
+    _cm_win && { ucrt cmc "$@"; return; }
     cmake -S . -B "$CM_BUILD_DIR" -G Ninja \
         -DCMAKE_BUILD_TYPE="${1:-Debug}" \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON   # lets clangd/nvim find your flags
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON   
 }
 
 cmb() {
+    _cm_win && { ucrt cmb "$@"; return; }
     [[ -d "$CM_BUILD_DIR" ]] || cmc || return
     cmake --build "$CM_BUILD_DIR" ${1:+--target "$1"}
 }
 
 cmr() {
+    _cm_win && { ucrt cmr "$@"; return; }
     local target="$1"
     shift 2>/dev/null
     cmb "$target" || return
@@ -54,13 +62,26 @@ cmr() {
 }
 
 cmt() {
+    _cm_win && { ucrt cmt "$@"; return; }
     cmb && ctest --test-dir "$CM_BUILD_DIR" --output-on-failure
 }
 
 cmf() {
+    _cm_win && { ucrt cmf "$@"; return; }
     rm -rf "$CM_BUILD_DIR" && cmc "$@"
 }
 
 cmrel() {
+    _cm_win && { ucrt cmrel "$@"; return; }
     cmf Release && cmb
+}
+export PATH="$HOME/.local/bin:$PATH"
+
+ucrt() {
+    local helpers
+    helpers="CM_BUILD_DIR=${CM_BUILD_DIR@Q}
+$(declare -f _cm_win cmc cmb cmr cmt cmf cmrel)"
+    /mnt/c/msys64/usr/bin/env.exe MSYSTEM=UCRT64 CHERE_INVOKING=1 \
+        /usr/bin/bash -lc "$helpers
+$*"
 }
